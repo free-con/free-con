@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Yapılacaklar</title>
+<link rel="stylesheet" href="stil.css">
+</head>
+<body>
+<main>
+  <h1>Yapılacaklar</h1>
+  <form id="form">
+    <input id="girdi" placeholder="Ne yapman gerekiyor?" autocomplete="off" aria-label="Yeni görev">
+    <button type="submit">Ekle</button>
+  </form>
+  <ul id="liste"></ul>
+  <footer>
+    <span id="sayac"></span>
+    <div class="filtreler">
+      <button data-filtre="hepsi">Hepsi</button>
+      <button data-filtre="aktif">Aktif</button>
+      <button data-filtre="biten">Biten</button>
+    </div>
+    <button id="temizle">Bitenleri sil</button>
+  </footer>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>
