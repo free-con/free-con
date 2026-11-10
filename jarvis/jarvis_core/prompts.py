@@ -18,6 +18,12 @@ def build_system_prompt(config, memory_facts: str, mode: str, tool_names: list[s
             "Birimleri okunacak şekilde yaz: '°C' yerine 'derece', '%' yerine 'yüzde', 'km/sa' yerine 'kilometre'. "
             "Uzun bir liste gerekiyorsa en önemli 3 maddeyi söyle ve devamını isteyip istemediğini sor."
         )
+    elif mode == "phone":
+        style = (
+            "Kullanıcı sana TELEFONDAN uzaktan yazıyor ve komutların EV BİLGİSAYARINDA çalışıyor. "
+            "Kısa ve net cevap ver; cevabın sesli de okunabileceği için sade yaz, ağır biçimlendirme (tablo, kod bloğu) kullanma. "
+            "Bir işi yaptığında ev bilgisayarında yaptığını unutma (ör. 'bilgisayarında Spotify'ı açtım')."
+        )
     else:
         style = (
             "Şu an YAZI modundasın: cevabın ekranda okunacak. Kısa ve net ol; gerekirse kısa listeler kullanabilirsin."

@@ -62,6 +62,67 @@ Sesli modda kapatmak için **"Jarvis, kendini kapat"** deyin ya da `Ctrl+C`'ye b
 
 ---
 
+## 📱 Telefondan kullanma
+
+Telefonunuzdan Jarvis'e ulaşıp **ev bilgisayarınızı** kontrol edebilirsiniz (dışarıdayken bile).
+İki yol vardır; ikisini birden de açabilirsiniz. En kolay kurulum:
+
+```
+python kurulum/telefon-kur.py
+```
+
+Bu yardımcı sizi adım adım yönlendirir. Sonra Jarvis'i her zamanki gibi başlatın; telefon kanalları
+otomatik açılır. Ev bilgisayarında mikrofon kullanmadan, **sadece telefon için** çalıştırmak isterseniz:
+
+```
+python jarvis.py --sunucu
+```
+
+### Telegram botu (her yerden erişim)
+1. Telegram'da **@BotFather** ile konuşun, `/newbot` yazıp bir bot oluşturun; size bir **token** verir.
+2. `telefon-kur.py`'ye bu token'ı ve bir **eşleştirme kodu** girin (ya da `.env`'e elle yazın).
+3. Jarvis'i başlatın. Telefonunuzdan botu açıp **eşleştirme kodunu** yazın — telefonunuz yetkilenir.
+4. Artık yazabilir ya da **sesli mesaj** gönderebilirsiniz; Jarvis ev bilgisayarınızda yapar ve cevaplar.
+
+> 🔒 **Güvenlik:** Bot, ev bilgisayarınızı kontrol edebildiği için **yalnızca sizin yetkilendirdiğiniz**
+> telefonlara cevap verir. Yetkisiz biri bota yazsa bile hiçbir komut çalışmaz. Token'ınızı ve eşleştirme
+> kodunuzu kimseyle paylaşmayın. (Sesli mesaj *göndermek* için bir kez `pip install av` gerekir.)
+
+### Web arayüzü (aynı Wi-Fi'dayken)
+`.env`'de `JARVIS_WEB=evet` yapın (ya da kurulum yardımcısında seçin). Jarvis başlayınca size
+**gizli anahtar içeren tam bir adres** yazar (ör. `http://192.168.1.20:8765/?t=...`). Bu adresi
+telefonunuzun tarayıcısında açın; yazabilir ya da 🎤 ile konuşabilirsiniz (ses telefonunuzda çözülür).
+
+> 🔒 Adresi kimseyle paylaşmayın: o adrese giren herkes bilgisayarınıza komut verebilir. Telefon,
+> ev bilgisayarıyla **aynı Wi-Fi'da** olmalı. (Dışarıdan erişim için Telegram daha uygundur.)
+
+---
+
+## 🔌 USB'ye kopyalayıp başka bilgisayarda çalıştırma
+
+Jarvis'i bir USB belleğe koyup taktığınız bilgisayarda çalıştırabilirsiniz; **hafızanız, notlarınız,
+hatırlatıcılarınız ve API anahtarınız** USB'yle birlikte gezer.
+
+1. **`jarvis` klasörünün tamamını** USB belleğe kopyalayın.
+2. Taktığınız bilgisayarda işletim sistemine göre başlatın:
+   - **Windows:** `tasinabilir-windows.bat` (çift tıklayın)
+   - **Mac:** `tasinabilir-mac.command` (çift tıklayın)
+   - **Linux:** `bash tasinabilir-mac-linux.sh`
+3. İlk kez takılan bir bilgisayarda, o bilgisayara özel bir çalışma ortamını USB üzerinde otomatik
+   hazırlar (bir defalık, internet gerekir, birkaç dakika). Sonraki açılışlar hızlıdır.
+
+**Dürüst sınırlar:**
+- Hedef bilgisayarda **Python 3.10+** kurulu olmalı. (Windows'ta yoksa normal `kurulum\kur-windows.bat`
+  kurar; taşınabilir sürüm Python'u kendisi kurmaz.)
+- Tek USB **Windows, Mac ve Linux'ta ayrı ayrı** çalışır (her biri USB'de kendi ortamını kurar), ama
+  aynı ortam işletim sistemleri arasında paylaşılmaz.
+- Telefon kanalları taşınabilir sürümde de açılır; Telegram her yerden, web ise o bilgisayarın ağında çalışır.
+
+> 🔒 Seçiminiz gereği API anahtarınız USB'deki `.env` dosyasında durur. USB kaybolursa anahtar başkasının
+> eline geçebilir; console.anthropic.com'dan o anahtarı iptal edip yenisini oluşturmanız yeterli.
+
+---
+
 ## Maliyet
 
 Varsayılan model **Claude Opus 5.5** (en akıllısı), hızlı cevap için düşük düşünme seviyesinde (`JARVIS_EFFORT=low`).
@@ -100,6 +161,11 @@ Kurulum `.env` dosyasını sizin için oluşturur. Not Defteri ile açıp deği�
 | `JARVIS_FOLLOW_UP_SECONDS` | Cevaptan sonra "Jarvis" demeden devam süresi | `8` |
 | `JARVIS_DATA_DIR` | Hafıza/not/hatırlatıcı klasörü | `~/Jarvis` |
 | `HA_URL`, `HA_TOKEN` | Home Assistant bağlantısı | (boş = kapalı) |
+| `JARVIS_TELEGRAM_TOKEN` | Telegram bot token'ı (@BotFather verir) | (boş = kapalı) |
+| `JARVIS_TELEGRAM_PAIR_CODE` | Telefonu yetkilendirme kodu | (boş) |
+| `JARVIS_TELEGRAM_ALLOWED` | Yetkili Telegram sohbet kimlikleri (virgülle) | (boş) |
+| `JARVIS_WEB` | Web arayüzü: `evet`/`hayir` | `hayir` |
+| `JARVIS_WEB_PORT`, `JARVIS_WEB_TOKEN` | Web portu ve gizli anahtarı | `8765`, (otomatik) |
 
 Asistanın adını değiştirmek isterseniz (örn. "Cuma"), `JARVIS_NAME=Cuma` ve `JARVIS_WAKE_WORDS=cuma` yazmanız yeterli.
 
@@ -125,7 +191,8 @@ Sesinizin Google'a gitmesini istemiyorsanız: `.venv\Scripts\python -m pip insta
   Claude'a (Anthropic) ise sadece **"Jarvis" diye başlayan** komutlar ve cevaptan hemen sonraki kısa sürede söyledikleriniz gönderilir.
   Jarvis'in cevapları seslendirilmek için Microsoft'un ses servisine gider.
 - **Yerel veriler:** Hafıza, notlar, hatırlatıcılar ve ekran görüntüleri sizin bilgisayarınızda `~/Jarvis` klasöründe durur.
-- **API anahtarınızı** kimseyle paylaşmayın; `.env` dosyası sadece sizin bilgisayarınızdadır.
+- **Telefon erişimi:** Telegram botu yalnızca yetkilendirdiğiniz telefonlara cevap verir; web arayüzü gizli bir anahtarla korunur. İkisi de ev bilgisayarınızı kontrol edebildiği için token'ı, eşleştirme kodunu ve web adresini gizli tutun.
+- **API anahtarınızı** kimseyle paylaşmayın; `.env` dosyası sadece sizin bilgisayarınızda (taşınabilir sürümde USB'de) durur.
 - **Kısıtlar:** Jarvis program dosyalarını (`.exe`, `.bat` vb.) dosya olarak açmaz, kritik sistem süreçlerini kapatmaz,
   bilgisayarı her zaman en az 10 saniye gecikmeyle kapatır ("iptal et" diyebilirsiniz) ve şifre gibi bilgileri hafızaya kaydetmez.
   Web sayfalarındaki talimatlara uymaz, onları sadece bilgi olarak kullanır.
@@ -143,6 +210,9 @@ Sesinizin Google'a gitmesini istemiyorsanız: `.venv\Scripts\python -m pip insta
 | Ses çıkmıyor | İnternet bağlantınızı kontrol edin (doğal ses internet ister); yedek ses için `pip install pyttsx3` |
 | Linux'ta "PortAudio library not found" | `sudo apt install libportaudio2` |
 | Mac'te mikrofon çalışmıyor | Sistem Ayarları → Gizlilik ve Güvenlik → Mikrofon → Terminal'e izin verin |
+| Telefon web'e bağlanamıyor | Telefon ev PC'siyle aynı Wi-Fi'da mı? Güvenlik duvarı `JARVIS_WEB_PORT` portuna izin veriyor mu? |
+| Telegram cevap vermiyor | Token doğru mu? Bota eşleştirme kodunu yazdınız mı? Konsoldaki "[telegram]" satırlarına bakın |
+| Telegram sesli mesajı çözemiyor | `pip install av` çalıştırın |
 
 ---
 
@@ -152,20 +222,25 @@ Sesinizin Google'a gitmesini istemiyorsanız: `.venv\Scripts\python -m pip insta
 jarvis/
 ├── jarvis.py               # giriş noktası
 ├── jarvis_core/
-│   ├── app.py              # yazı ve ses döngüleri
+│   ├── app.py              # masaüstü döngüleri + sunucu modu
+│   ├── service.py          # tek beyin/hafıza havuzunu kanallara paylaştırır
 │   ├── brain.py            # Claude ile konuşma ve araç döngüsü
 │   ├── prompts.py          # Jarvis'in kişiliği ve kuralları
-│   ├── voice.py            # mikrofon, uyanma kelimesi, konuşma
+│   ├── voice.py            # mikrofon, uyanma kelimesi, konuşma, ses çözme
 │   ├── memory.py           # kalıcı hafıza ve notlar
 │   ├── reminders.py        # hatırlatıcılar
 │   ├── config.py           # .env ayarları
+│   ├── channels/           # telefon kanalları
+│   │   ├── telegram_bot.py # Telegram botu (yetkilendirmeli)
+│   │   └── web.py          # telefon tarayıcısı için web arayüzü
 │   └── tools/              # Jarvis'in yapabildiği işler
 │       ├── computer.py     # uygulama, dosya, ekran, sistem, güç
 │       ├── media.py        # müzik ve ses
 │       ├── info.py         # hava durumu
 │       ├── personal.py     # hafıza, not, hatırlatıcı araçları
 │       └── smarthome.py    # Home Assistant
-├── kurulum/                # tek tıkla kurulum betikleri
+├── kurulum/                # kurulum ve telefon-kur yardımcıları
+├── tasinabilir-*.{bat,sh,command}  # USB'den çalıştırma
 └── tests/                  # python -m pytest tests
 ```
 

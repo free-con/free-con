@@ -9,11 +9,10 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 
-from .brain import Brain
 from .config import PROJECT_DIR, Config
 from .memory import MemoryStore
 from .reminders import ReminderManager
-from .tools import build_registry
+from .service import JarvisService
 
 DIM, BOLD, CYAN, GREEN, YELLOW, RED, RESET = "\033[2m", "\033[1m", "\033[36m", "\033[32m", "\033[33m", "\033[31m", "\033[0m"
 
@@ -87,31 +86,67 @@ def check_api_key(config: Config) -> bool:
     return False
 
 
-def build(config: Config, mode: str, notify=None) -> tuple[JarvisContext, Brain]:
-    config.data_dir.mkdir(parents=True, exist_ok=True)
-    memory = MemoryStore(config.data_dir)
-    reminders = ReminderManager(config.data_dir, notify=notify)
-    ctx = JarvisContext(config, memory, reminders)
-    registry = build_registry(ctx)
-    brain = Brain(config, registry, memory, mode=mode, on_status=lambda msg: say_line(f"  {msg}", DIM))
-    return ctx, brain
-
-
-def _handle_slash(command: str, brain: Brain) -> bool:
+def _handle_slash(command: str, service: JarvisService, channel: str) -> bool:
     """Eğik çizgiyle başlayan komutları işler. Çıkış istenirse False döner."""
     cmd = command.lower().strip()
     if cmd in ("/cikis", "/çıkış", "/exit", "/quit"):
         return False
     if cmd == "/yeni":
-        brain.new_session()
+        service.reset_channel(channel)
         say_line("Yeni konuşma başladı.", GREEN)
     elif cmd in ("/hafiza", "/hafıza"):
-        say_line(brain.memory.list_facts(), CYAN)
+        say_line(service.memory.list_facts(), CYAN)
     elif cmd == "/maliyet":
-        say_line(brain.usage_summary(), CYAN)
+        say_line(service.usage_summary(), CYAN)
     else:
         say_line(HELP_TEXT)
     return True
+
+
+def start_phone_channels(service: JarvisService, config: Config):
+    """Yapılandırılmışsa Telegram ve web kanallarını başlatır. (durdurma fonksiyonu) döndürür."""
+    stoppers = []
+    if config.telegram_enabled:
+        try:
+            from .channels.telegram_bot import TelegramBot
+
+            bot = TelegramBot(service, config, on_log=lambda m: say_line(m, DIM))
+            service.add_reminder_listener(bot.notify_reminder)
+            bot.start()
+            stoppers.append(bot.stop)
+            if not bot.allowed and not bot.pair_code:
+                say_line("📱 Telegram botu açık ama henüz yetkili cihaz yok.", YELLOW)
+                say_line("   Telefonunuzdan bota /start yazın; size cihaz kimliğinizi söyleyecek. "
+                         "Onu .env dosyasındaki JARVIS_TELEGRAM_ALLOWED satırına ekleyin "
+                         "(ya da JARVIS_TELEGRAM_PAIR_CODE belirleyip o kodu gönderin).", DIM)
+            else:
+                say_line("📱 Telegram botu açık — telefonunuzdan yazabilir/konuşabilirsiniz.", GREEN)
+        except Exception as exc:
+            say_line(f"Telegram başlatılamadı: {exc}", RED)
+    if config.web_enabled:
+        try:
+            from .channels.web import WebInterface
+
+            web = WebInterface(service, config)
+            service.add_reminder_listener(web.add_event)
+            web.start()
+            stoppers.append(web.stop)
+            say_line("🌐 Web arayüzü açık. Telefonunuzun tarayıcısında şu adresi açın:", GREEN)
+            say_line(f"   {web.url}", BOLD + CYAN)
+            say_line("   (Telefon ev bilgisayarınızla aynı Wi-Fi'da olmalı. Adresi paylaşmayın: komut çalıştırır.)", DIM)
+        except OSError as exc:
+            say_line(f"Web arayüzü başlatılamadı (port {config.web_port} meşgul olabilir): {exc}", RED)
+        except Exception as exc:
+            say_line(f"Web arayüzü başlatılamadı: {exc}", RED)
+
+    def stop_all() -> None:
+        for stop in stoppers:
+            try:
+                stop()
+            except Exception:
+                pass
+
+    return stop_all
 
 
 def run_text(config: Config, speak: bool = False) -> None:
@@ -124,14 +159,21 @@ def run_text(config: Config, speak: bool = False) -> None:
             say_line("Ses çıkışı kullanılamıyor; sadece yazıyla devam ediliyor.", YELLOW)
             speaker = None
 
+    service = JarvisService(config)
+    channel = "masaüstü"
+    mode = "voice" if speaker else "text"
+
     def notify(text: str) -> None:
         say_line(f"\n⏰ {text}", YELLOW + BOLD)
         print("\a", end="", flush=True)
         if speaker:
             speaker.say(text)
 
-    ctx, brain = build(config, "voice" if speaker else "text", notify)
-    ctx.reminders.start()
+    service.add_reminder_listener(notify)
+    stop_phone = start_phone_channels(service, config)
+    service.get_brain(channel, mode, on_status=lambda msg: say_line(f"  {msg}", DIM))
+    service.start_reminders()
+
     name = config.assistant_name
     hello = greeting(config.user_name).replace("sizi dinliyorum", "yazmanızı bekliyorum")
     say_line(f"\n{BOLD}{CYAN}{name}{RESET} ({config.model}) - {hello}")
@@ -147,18 +189,19 @@ def run_text(config: Config, speak: bool = False) -> None:
             if not text:
                 continue
             if text.startswith("/"):
-                if not _handle_slash(text, brain):
+                if not _handle_slash(text, service, channel):
                     break
                 continue
-            reply = brain.ask(text)
+            reply = service.ask(channel, text, mode)
             say_line(f"{BOLD}{CYAN}{name}:{RESET} {reply.text}\n", "" if reply.ok else YELLOW)
             if speaker:
                 speaker.say(reply.text)
     except KeyboardInterrupt:
         pass
     finally:
-        ctx.reminders.stop()
-        say_line(f"\n{brain.usage_summary()}", DIM)
+        stop_phone()
+        service.stop_reminders()
+        say_line(f"\n{service.usage_summary()}", DIM)
         say_line("Görüşmek üzere.", CYAN)
 
 
@@ -174,15 +217,26 @@ def run_voice(config: Config) -> None:
     except Exception as exc:
         say_line(f"Mikrofon açılamadı: {exc}", RED)
         say_line(AUDIO_HINT, YELLOW)
-        say_line("Yazı moduna geçiliyor. (Mikrofonları görmek için: python jarvis.py --mikrofonlar)", YELLOW)
-        run_text(config, speak=speaker.available)
+        if config.phone_enabled:
+            say_line("Mikrofonsuz sunucu moduna geçiliyor (telefondan kullanabilirsiniz).", YELLOW)
+            run_server(config)
+        else:
+            say_line("Yazı moduna geçiliyor. (Mikrofonları görmek için: python jarvis.py --mikrofonlar)", YELLOW)
+            run_text(config, speak=speaker.available)
         return
+
+    service = JarvisService(config)
+    channel = "masaüstü"
 
     def notify(text: str) -> None:
         say_line(f"⏰ {text}", YELLOW + BOLD)
         speaker.say(text)
 
-    ctx, brain = build(config, "voice", notify)
+    service.add_reminder_listener(notify)
+    stop_phone = start_phone_channels(service, config)
+    service.get_brain(channel, "voice", on_status=lambda msg: say_line(f"  {msg}", DIM))
+    service.start_reminders()
+
     name = config.assistant_name
     wake_hint = config.wake_words[0].capitalize()
     say_line(f"\n{BOLD}{CYAN}{name}{RESET} ({config.model}) hazır. Konuşmak için '{wake_hint} ...' diye başlayın.")
@@ -190,7 +244,6 @@ def run_voice(config: Config) -> None:
     hello = greeting(config.user_name)
     say_line(f"{CYAN}{name}:{RESET} {hello}")
     speaker.say(hello)
-    ctx.reminders.start()
 
     awake_until = 0.0
     errors_in_a_row = 0
@@ -222,16 +275,44 @@ def run_voice(config: Config) -> None:
             if is_exit_command(command):
                 speaker.say("Kendimi kapatıyorum. Görüşmek üzere.")
                 break
-            reply = brain.ask(command)
+            reply = service.ask(channel, command, "voice")
             say_line(f"{BOLD}{CYAN}{name}:{RESET} {reply.text}", "" if reply.ok else YELLOW)
             speaker.say(reply.text)
             awake_until = time.monotonic() + config.follow_up_seconds
     except KeyboardInterrupt:
         pass
     finally:
-        ctx.reminders.stop()
-        say_line(f"\n{brain.usage_summary()}", DIM)
+        stop_phone()
+        service.stop_reminders()
+        say_line(f"\n{service.usage_summary()}", DIM)
         say_line("Görüşmek üzere.", CYAN)
+
+
+def run_server(config: Config) -> None:
+    """Mikrofonsuz sunucu modu: sadece telefon kanalları. Ev PC'si açık dururken telefondan kullanılır."""
+    service = JarvisService(config)
+    service.add_reminder_listener(lambda text: say_line(f"⏰ {text}", YELLOW + BOLD))
+    stop_phone = start_phone_channels(service, config)
+    service.start_reminders()
+    if not config.phone_enabled:
+        say_line("Sunucu modu için en az bir telefon kanalı açık olmalı.", RED)
+        say_line("Telegram için JARVIS_TELEGRAM_TOKEN, web için JARVIS_WEB=evet ayarlayın "
+                 "(python kurulum/telefon-kur.py ile kolayca yapabilirsiniz).", YELLOW)
+        stop_phone()
+        return
+    name = config.assistant_name
+    say_line(f"\n{BOLD}{CYAN}{name}{RESET} ({config.model}) sunucu modunda çalışıyor. "
+             "Telefonunuzdan ulaşabilirsiniz. Durdurmak için Ctrl+C.\n", DIM)
+    try:
+        while True:
+            time.sleep(3600)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        stop_phone()
+        service.stop_reminders()
+        say_line(f"\n{service.usage_summary()}", DIM)
+        say_line("Sunucu kapatıldı.", CYAN)
 
 
 def sound_test(config: Config) -> None:
@@ -271,6 +352,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Jarvis - Claude ile çalışan kişisel asistan")
     parser.add_argument("--yazi", action="store_true", help="Sesli değil, klavyeden yazarak konuş")
     parser.add_argument("--konus", action="store_true", help="Yazı modunda cevapları sesli de oku")
+    parser.add_argument("--sunucu", action="store_true",
+                        help="Mikrofonsuz sunucu modu: sadece telefon (Telegram/web) kanalları")
     parser.add_argument("--ses-testi", action="store_true", help="Hoparlör ve mikrofonu test et")
     parser.add_argument("--mikrofonlar", action="store_true", help="Bağlı mikrofonları listele")
     parser.add_argument("--model", help="Bu çalıştırma için Claude modeli (örn. claude-haiku-5-5)")
@@ -297,7 +380,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if not check_api_key(config):
         return 1
-    if args.yazi:
+    if args.sunucu:
+        run_server(config)
+    elif args.yazi:
         run_text(config, speak=args.konus)
     else:
         run_voice(config)

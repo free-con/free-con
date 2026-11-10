@@ -13,3 +13,8 @@ SpeechRecognition>=3.10 # konuşmayı yazıya çevirme (Google, ücretsiz)
 #   pip install faster-whisper
 # İsteğe bağlı: internet yokken yedek ses için
 #   pip install pyttsx3
+# İsteğe bağlı: Telegram'a SESLİ MESAJ gönderebilmek için (ses çözme)
+#   pip install av
+#
+# Telegram botu ve web arayüzü için ek pakete gerek yoktur (requests ve standart
+# kütüphane yeterlidir).

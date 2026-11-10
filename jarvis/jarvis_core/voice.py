@@ -301,3 +301,86 @@ def list_microphones() -> str:
             mark = "  (varsayılan)" if i == default_in else ""
             lines.append(f"  {i}: {dev['name']}{mark}")
     return "\n".join(lines) or "  Hiç mikrofon bulunamadı."
+
+
+# ------------------------------------------------- telefondan gelen ses / mp3 üretimi
+# (Bu fonksiyonlar mikrofon/hoparlör gerektirmez; mikrofonsuz bir sunucuda da çalışır.)
+
+_WHISPER_CACHE: dict[str, object] = {}
+
+
+def decode_audio_to_pcm16(data: bytes) -> bytes:
+    """Telegram sesli mesajı (OGG/Opus) gibi bir ses verisini 16 kHz mono PCM16'ya çevirir."""
+    try:
+        import av  # PyAV: ffmpeg'i paketinde taşır
+    except ImportError:
+        raise SpeechServiceError(
+            "Sesli mesajı çözmek için 'av' paketi gerekli. Kurmak için: pip install av"
+        ) from None
+    import io as _io
+
+    container = av.open(_io.BytesIO(data))
+    resampler = av.audio.resampler.AudioResampler(format="s16", layout="mono", rate=SAMPLE_RATE)
+    chunks: list[bytes] = []
+    for frame in container.decode(audio=0):
+        for resampled in resampler.resample(frame):
+            chunks.append(bytes(resampled.planes[0]))
+    container.close()
+    return b"".join(chunks)
+
+
+def transcribe_bytes(config, data: bytes) -> str:
+    """Bir ses verisini yazıya çevirir (Telegram sesli mesajları için)."""
+    pcm = decode_audio_to_pcm16(data)
+    if len(pcm) < SAMPLE_RATE:  # ~0.5 sn'den kısa
+        return ""
+    if config.stt_engine == "whisper":
+        import numpy as np
+
+        model = _WHISPER_CACHE.get(config.whisper_model)
+        if model is None:
+            from faster_whisper import WhisperModel
+
+            model = WhisperModel(config.whisper_model, device="cpu", compute_type="int8")
+            _WHISPER_CACHE[config.whisper_model] = model
+        audio = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
+        segments, _info = model.transcribe(audio, language=config.language.split("-")[0], beam_size=1)
+        return " ".join(s.text.strip() for s in segments).strip()
+    import speech_recognition as sr
+
+    recognizer = sr.Recognizer()
+    audio = sr.AudioData(pcm, SAMPLE_RATE, 2)
+    try:
+        return recognizer.recognize_google(audio, language=config.language)
+    except sr.UnknownValueError:
+        return ""
+    except sr.RequestError as exc:
+        raise SpeechServiceError(f"Konuşma tanıma servisine ulaşılamadı: {exc}") from exc
+
+
+def synthesize_mp3(config, text: str) -> bytes | None:
+    """Metni seslendirip MP3 baytları döndürür (Telegram sesli cevabı için). Başarısızsa None."""
+    clean = clean_for_speech(text)
+    if not clean:
+        return None
+    try:
+        import asyncio
+        import tempfile as _tempfile
+
+        import edge_tts
+
+        path = Path(_tempfile.gettempdir()) / f"jarvis_tg_{time.time_ns()}.mp3"
+
+        async def synth() -> None:
+            await edge_tts.Communicate(clean, config.voice, rate=config.voice_rate).save(str(path))
+
+        asyncio.run(synth())
+        data = path.read_bytes()
+        try:
+            path.unlink()
+        except OSError:
+            pass
+        return data or None
+    except Exception as exc:
+        print(f"[ses] Telegram için ses üretilemedi: {exc}")
+        return None

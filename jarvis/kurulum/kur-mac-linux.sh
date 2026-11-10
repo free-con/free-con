@@ -93,4 +93,9 @@ case "$TEST" in
   [eEyY]*) .venv/bin/python jarvis.py --ses-testi || true ;;
 esac
 echo
+read -r -p "Telefondan da kullanmak ister misiniz? (Telegram/web kurulumu) (E/H): " PHONE || true
+case "$PHONE" in
+  [eEyY]*) .venv/bin/python kurulum/telefon-kur.py || true ;;
+esac
+echo
 echo "Jarvis'i başlatmak için: ./jarvis-baslat.sh   (yazarak konuşmak için: ./jarvis-baslat.sh --yazi)"

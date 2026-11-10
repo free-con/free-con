@@ -72,12 +72,31 @@ class Config:
     follow_up_seconds: float = 8.0
     use_fallbacks: bool = True
     data_dir: Path = field(default_factory=lambda: Path.home() / "Jarvis")
+    portable: bool = False
     ha_url: str = ""
     ha_token: str = ""
+    # Telefon: Telegram botu
+    telegram_token: str = ""
+    telegram_allowed: list[str] = field(default_factory=list)
+    telegram_pair_code: str = ""
+    telegram_voice_reply: bool = True
+    # Telefon: web arayüzü (aynı Wi-Fi'daki telefonun tarayıcısından)
+    web_enabled: bool = False
+    web_host: str = "0.0.0.0"
+    web_port: int = 8765
+    web_token: str = ""
 
     @property
     def os_name(self) -> str:
         return platform.system()  # "Windows", "Darwin" (Mac), "Linux"
+
+    @property
+    def telegram_enabled(self) -> bool:
+        return bool(self.telegram_token)
+
+    @property
+    def phone_enabled(self) -> bool:
+        return self.telegram_enabled or self.web_enabled
 
     @property
     def fallbacks_enabled(self) -> bool:
@@ -125,9 +144,21 @@ def load_config(env_file: Path | None = None) -> Config:
     except ValueError:
         pass
     cfg.use_fallbacks = _as_bool(values.get("JARVIS_FALLBACKS"), True)
+    cfg.portable = _as_bool(values.get("JARVIS_PORTABLE"), False)
     data_dir = get("JARVIS_DATA_DIR")
     if data_dir:
         cfg.data_dir = Path(os.path.expandvars(os.path.expanduser(data_dir)))
     cfg.ha_url = get("HA_URL").rstrip("/")
     cfg.ha_token = get("HA_TOKEN")
+
+    cfg.telegram_token = get("JARVIS_TELEGRAM_TOKEN")
+    allowed = get("JARVIS_TELEGRAM_ALLOWED")
+    if allowed:
+        cfg.telegram_allowed = [x.strip() for x in allowed.replace(";", ",").split(",") if x.strip()]
+    cfg.telegram_pair_code = get("JARVIS_TELEGRAM_PAIR_CODE")
+    cfg.telegram_voice_reply = _as_bool(values.get("JARVIS_TELEGRAM_VOICE_REPLY"), True)
+    cfg.web_enabled = _as_bool(values.get("JARVIS_WEB"), False)
+    cfg.web_host = get("JARVIS_WEB_HOST", cfg.web_host)
+    cfg.web_port = int(get("JARVIS_WEB_PORT", str(cfg.web_port)) or cfg.web_port)
+    cfg.web_token = get("JARVIS_WEB_TOKEN")
     return cfg

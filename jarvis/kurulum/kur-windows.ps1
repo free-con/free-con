@@ -101,4 +101,6 @@ try {
 Yaz "`n=== Kurulum tamamlandı! ===" Cyan
 $cevap = Read-Host "Hoparlör ve mikrofon testi yapılsın mı? (E/H)"
 if ($cevap -match '^[eEyY]') { & $vpy jarvis.py --ses-testi }
+$tel = Read-Host "Telefondan da kullanmak ister misiniz? (Telegram/web kurulumu) (E/H)"
+if ($tel -match '^[eEyY]') { & $vpy kurulum\telefon-kur.py }
 Yaz "`nJarvis'i başlatmak için masaüstündeki 'Jarvis' kısayoluna çift tıklayın." Green
