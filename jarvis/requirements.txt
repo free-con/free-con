@@ -1,0 +1,15 @@
+# Jarvis için gerekli Python paketleri
+anthropic>=2.7.0        # Claude API
+requests>=2.31          # hava durumu, YouTube, Home Assistant
+psutil>=5.9             # sistem durumu, uygulama kapatma
+pillow>=10.0            # ekran görüntüsü
+edge-tts>=6.1           # doğal Türkçe ses (internet gerekir)
+pygame>=2.5             # sesi çalmak için
+sounddevice>=0.4.6      # mikrofon
+numpy>=1.24             # ses işleme
+SpeechRecognition>=3.10 # konuşmayı yazıya çevirme (Google, ücretsiz)
+
+# İsteğe bağlı: internetsiz konuşma tanıma için (JARVIS_STT=whisper)
+#   pip install faster-whisper
+# İsteğe bağlı: internet yokken yedek ses için
+#   pip install pyttsx3
