@@ -1,0 +1,72 @@
+===============================================
+   JARVIS - Kişisel Sesli Asistan
+   BURADAN BAŞLAYIN
+===============================================
+
+Jarvis, "Jarvis" diye seslendiğinizde sizi dinleyen, bilgisayarınızda
+iş yapıp sesli cevap veren bir asistandır. İsterseniz yazarak da konuşursunuz.
+
+
+-----------------------------------------------
+ÖNCE: Bir Claude API anahtarı alın (5 dakika)
+-----------------------------------------------
+Jarvis'in "beyni" Claude'dur ve bu, kullandıkça ödenen bir servistir
+(claude.ai aboneliğinden ayrıdır).
+
+1) https://console.anthropic.com adresine girin, bir hesap açın.
+2) "Billing" (Faturalandırma) bölümünden biraz kredi yükleyin
+   (5 dolar çok uzun süre yeter).
+3) "Settings" > "API Keys" > "Create Key" ile bir anahtar oluşturun.
+   Anahtar "sk-ant-..." diye başlar. Kopyalayın; birazdan kurulum soracak.
+
+Kurulum sırasında bu anahtarı yapıştıracaksınız. Anahtarınızı kimseyle
+paylaşmayın.
+
+
+-----------------------------------------------
+KURULUM
+-----------------------------------------------
+
+>>> WINDOWS kullanıyorsanız:
+    1) Bu klasördeki  "Windows-Kurulum.bat"  dosyasına ÇİFT TIKLAYIN.
+    2) Mavi bir "Windows bu bilgisayarı korudu" uyarısı çıkarsa:
+       "Ek bilgi" > "Yine de çalıştır" deyin.
+    3) Ekrandaki adımları izleyin (Python yoksa kendisi kurmayı dener,
+       sonra API anahtarınızı sorar). Bitince masaüstüne "Jarvis"
+       kısayolu eklenir.
+
+>>> MAC kullanıyorsanız:
+    1) Bu klasördeki  "Mac-Kurulum.command"  dosyasına ÇİFT TIKLAYIN.
+    2) "Geliştirici doğrulanamadı" uyarısı çıkarsa: dosyaya SAĞ TIKLAYIN >
+       "Aç" > yine "Aç" deyin (ilk seferde bir kez gerekir).
+    3) İlk açılışta mikrofon izni isterse "İzin Ver" deyin.
+
+>>> LINUX kullanıyorsanız:
+    Bir terminal açın, bu klasöre gidin ve şunu çalıştırın:
+        bash kurulum/kur-mac-linux.sh
+
+
+-----------------------------------------------
+KULLANIM
+-----------------------------------------------
+Kurulumdan sonra Jarvis'i başlatın (Windows'ta masaüstündeki "Jarvis"
+kısayolu; Mac/Linux'ta "jarvis-baslat" dosyası).
+
+Sonra şöyle konuşun:
+   "Jarvis, Spotify'ı aç"
+   "Jarvis, yarın hava nasıl?"
+   "Jarvis, 10 dakika sonra çayı hatırlat"
+   "Jarvis, dolar kaç TL?"
+
+Yazarak kullanmak isterseniz kurulumdan sonra "Jarvis (Yazı)" kısayolunu
+kullanabilirsiniz.
+
+Telefondan da kullanmak isterseniz kurulumun sonundaki soruya "Evet" deyin
+(ya da sonradan:  python kurulum/telefon-kur.py ).
+
+
+-----------------------------------------------
+YARDIM
+-----------------------------------------------
+Ayrıntılı Türkçe kılavuz için "README.md" dosyasına bakın.
+Takıldığınız yerde bu paketi size gönderen kişiye danışın.
